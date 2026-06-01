@@ -67,6 +67,7 @@ const originalPathnameList = [
   '/api/v1/user/ticket/fetch',
   '/api/v1/bing/vip',
   '/api/v1/user/getSubscribe',
+  '/api/v1/user/newPeriod',
   '/api/v1/user/order/getPaymentMethod',
   '/api/v1/user/stat/getTrafficLog',
   '/api/v1/user/getStat',

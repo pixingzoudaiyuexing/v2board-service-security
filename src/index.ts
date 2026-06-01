@@ -42,6 +42,10 @@ app.use(cors({
 
 // 中间件：处理加密请求
 app.use(async (ctx, next) => {
+  if (ctx.request.path === '/healthz') {
+    return next()
+  }
+
   console.log('\n原始请求:', `${ctx.method} ${ctx.request.path} ${JSON.stringify(ctx.request.query)}`, ctx.request.body)
   const salt = ctx.request.get('x-salt')
   const saltBuffer = salt && Buffer.from(salt, 'base64')
