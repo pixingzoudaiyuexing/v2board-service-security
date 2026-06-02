@@ -1,19 +1,8 @@
-<div align="center">
-    <a href="https://r8d.pro"><img src="https://github.com/dc8683/picx-images-hosting/raw/master/docs/AirSecurity-LOGO@1x.86twptctpt.webp" alt="airbuddy rocket theme" width="150" /></a>
-    <h1>AirBuddy Security Service</h1>
-    <p><b> v2board/xboard/xiaoboard </b>开源后端中间件服务，防墙去特征、不怕墙、体积超小的免费中间件服务，支持 V2B/XB/xiaoboard，支持加密转发接口请求、响应，支持免登获取商品列表、免登获取付款方、免登创建订单接口，自建 SMTP，支持自定义邮件模板</p>
+
 </div>
 
 ---
 
-## 项目介绍
-
-- 适配后端面板： [**v2board**](https://github.com/v2board/v2board) \ [**wyxboard**](https://github.com/wyx2685/v2board) \ [**xboard**](https://github.com/cedar2025/Xboard)
-- 支持主题：[🚀 AirRocket Theme](https://github.com/dc8683/v2board-theme-airrocket)
-- 在线客服：[🏄‍♂️ AirBuddy Service](https://t.me/R8d_pro_bot)
-- 交流群组：[🚀 AirBuddy Theme](https://t.me/themebuddy)
-- 授权方式：免费开源
-- 使用文档：[📖 AirBuddy Docs](https://r8d.pro/docs)
 
 ### 1. 加密转发
 
