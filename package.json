@@ -1,7 +1,7 @@
 {
   "name": "airbuddy-security",
   "type": "module",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "private": true,
   "packageManager": "yarn@1.22.22",
   "module": "./dist/index.js",
@@ -10,7 +10,8 @@
     "start": "bun run ./dist/index.js",
     "build:bun": "bun build ./src/index.ts --target=bun --outdir dist",
     "build:node": "bun build ./src/index.ts --target=node --outdir dist",
-    "build:executable": "bun build ./src/index.ts --compile --minify --sourcemap --target=bun-linux-x64-modern --outfile dist/airbuddy-security-executable --static"
+    "build:executable": "bun build ./src/index.ts --compile --minify --sourcemap --target=bun-linux-x64-modern --outfile dist/airbuddy-security-executable --static",
+    "deploy:worker": "npx wrangler deploy --config cloudflare-worker/wrangler.toml"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^3.9.2",

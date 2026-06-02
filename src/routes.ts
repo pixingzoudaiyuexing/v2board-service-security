@@ -246,22 +246,49 @@ router.all('/api/v1/:segments*', async (ctx: Koa.Context) => {
   url.pathname = path
   console.log('代理转发请求:', `${ctx.method} ${url.toString()}`, 'path:', path, 'body:', body, 'rawBody:', rawBody)
 
-  // 代理请求转发
-  const response = await fetch(url, {
+  const requestInit: RequestInit & { verbose?: boolean } = {
     method: ctx.method,
     headers,
-    body: JSON.stringify(body),
     verbose: false, // 调试用，输出详细日志
     ...proxyConfig,
-  })
+  }
+
+  const method = ctx.method.toUpperCase()
+  if (method !== 'GET' && method !== 'HEAD') {
+    const contentType = headers.get('content-type') || ''
+    const hasBody = rawBody != null && String(rawBody).length > 0
+    if (hasBody) {
+      if (contentType.includes('application/json')) {
+        requestInit.body = typeof rawBody === 'string' ? rawBody : JSON.stringify(body ?? {})
+      }
+      else if (contentType.includes('application/x-www-form-urlencoded')) {
+        requestInit.body = typeof rawBody === 'string'
+          ? rawBody
+          : new URLSearchParams((body ?? {}) as Record<string, string>).toString()
+      }
+      else {
+        requestInit.body = typeof rawBody === 'string' ? rawBody : String(rawBody)
+      }
+    }
+  }
+
+  // 代理请求转发
+  const response = await fetch(url, requestInit)
 
   ctx.response.status = response.status
-  ctx.response.body = await response.text()
 
   const omitHeaders = ['vary', 'transfer-encoding', 'content-length', 'content-encoding']
   for (const [key, value] of response.headers.entries()) {
     if (!omitHeaders.includes(key)) {
       ctx.response.set(key, value)
     }
+  }
+
+  const responseType = response.headers.get('content-type') || ''
+  if (responseType.includes('application/json')) {
+    ctx.response.body = await response.text()
+  }
+  else {
+    ctx.response.body = await response.text()
   }
 })

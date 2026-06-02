@@ -1,0 +1,19 @@
+name = "v2board-service-security-fallback"
+main = "worker.js"
+compatibility_date = "2026-06-02"
+
+[vars]
+BACKEND_PANEL = "v2b"
+BACKEND_DOMAIN = "https://your-backend.example.com"
+ADMIN_API_PREFIX = "your-admin-prefix"
+ADMIN_CREATE_USER_ENABLED = "false"
+CAPTCHA_QUICK_ORDER_ENABLED = "true"
+CAPTCHA_REGISTER_ENABLED = "true"
+CAPTCHA_LOGIN_ENABLED = "false"
+ENCRYPTED_REQUEST_ONLY = "false"
+
+# Set these as Cloudflare Worker secrets instead of plain vars:
+# SEC_PASSWORD
+# ADMIN_EMAIL
+# ADMIN_PASSWORD
+# CAPTCHA_KEY
