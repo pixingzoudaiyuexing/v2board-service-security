@@ -10,13 +10,38 @@ on:
         description: 'release description.'
         required: false
         type: string
+
 jobs:
-  build-executable:
-    if: |
-      github.actor == github.repository_owner
+  prepare:
+    if: github.actor == github.repository_owner
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    outputs:
+      version: ${{ steps.package-version.outputs.version }}
+      release_body_file: ${{ steps.release-body.outputs.file }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get version from package.json
+        id: package-version
+        run: |
+          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Resolve release body file
+        id: release-body
+        run: |
+          VERSION="${{ steps.package-version.outputs.version }}"
+          FILE="RELEASE_${VERSION}.md"
+          if [ -f "$FILE" ]; then
+            echo "file=$FILE" >> $GITHUB_OUTPUT
+          else
+            echo "file=" >> $GITHUB_OUTPUT
+          fi
+
+  build-executable:
+    if: github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    needs: prepare
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -24,11 +49,6 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.2.11
-
-      - name: Get version from package.json
-        id: package-version
-        run: |
-          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: Install Dependencies
         run: bun install --frozen-lockfile
@@ -36,53 +56,37 @@ jobs:
       - name: Build Executable
         run: bun build:executable
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Upload executable artifact
+        uses: actions/upload-artifact@v4
         with:
-          files: |
-            dist/airbuddy-security-executable
-          tag_name: ${{ steps.package-version.outputs.version }}
-          name: ${{ steps.package-version.outputs.version }}
-          body: |
-            ${{ inputs.description }}
+          name: release-executable
+          path: dist/airbuddy-security-executable
+          if-no-files-found: error
 
   build-docker-image:
-    if: |
-      github.actor == github.repository_owner
+    if: github.actor == github.repository_owner
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    needs: prepare
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get version from package.json
-        id: package-version
-        run: |
-          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
-
       - name: Build Docker Image
         run: |
-          docker build --platform linux/amd64 -t airbuddy-security:${{ steps.package-version.outputs.version }} .
-          docker images
-          docker save airbuddy-security:${{ steps.package-version.outputs.version }} > airbuddy-security-docker-image-${{ steps.package-version.outputs.version }}.tar
+          docker build --platform linux/amd64 -t airbuddy-security:${{ needs.prepare.outputs.version }} .
+          docker save airbuddy-security:${{ needs.prepare.outputs.version }} > airbuddy-security-docker-image-${{ needs.prepare.outputs.version }}.tar
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Upload docker artifact
+        uses: actions/upload-artifact@v4
         with:
-          files: |
-            airbuddy-security-docker-image-${{ steps.package-version.outputs.version }}.tar
-          tag_name: ${{ steps.package-version.outputs.version }}
-          name: airbuddy-security-${{ steps.package-version.outputs.version }}
-          body: |
-            ${{ inputs.description }}
+          name: release-docker-image
+          path: airbuddy-security-docker-image-${{ needs.prepare.outputs.version }}.tar
+          if-no-files-found: error
 
   build-js:
-    if: |
-      github.actor == github.repository_owner
+    if: github.actor == github.repository_owner
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    needs: prepare
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -91,23 +95,69 @@ jobs:
         with:
           bun-version: 1.2.11
 
-      - name: Get version from package.json
-        id: package-version
-        run: |
-          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
-
       - name: Install Dependencies
         run: bun install --frozen-lockfile
 
       - name: Build Node Dist
         run: bun run build:node
 
+      - name: Upload JS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-js
+          path: dist/index.js
+          if-no-files-found: error
+
+  release:
+    if: github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    needs:
+      - prepare
+      - build-executable
+      - build-docker-image
+      - build-js
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download executable artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-executable
+          path: release-assets
+
+      - name: Download docker artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-docker-image
+          path: release-assets
+
+      - name: Download JS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-js
+          path: release-assets
+
+      - name: Create release notes fallback
+        run: |
+          if [ -n "${{ needs.prepare.outputs.release_body_file }}" ]; then
+            cp "${{ needs.prepare.outputs.release_body_file }}" release-body.final.md
+          elif [ -n "${{ inputs.description }}" ]; then
+            printf '%s\n' "${{ inputs.description }}" > release-body.final.md
+          else
+            printf 'Release %s\n' "${{ needs.prepare.outputs.version }}" > release-body.final.md
+          fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.prepare.outputs.version }}
+          name: ${{ needs.prepare.outputs.version }}
+          body_path: release-body.final.md
+          draft: false
           files: |
-            dist/index.js
-          tag_name: ${{ steps.package-version.outputs.version }}
-          name: ${{ steps.package-version.outputs.version }}
-          body: |
-            ${{ inputs.description }}
+            release-assets/airbuddy-security-executable
+            release-assets/airbuddy-security-docker-image-${{ needs.prepare.outputs.version }}.tar
+            release-assets/index.js
