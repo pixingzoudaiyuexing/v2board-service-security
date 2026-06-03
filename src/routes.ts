@@ -111,6 +111,33 @@ router.get('/api/v1/client/app/getVersion', async (ctx: Koa.Context) => {
   }
 })
 
+router.get('/app/update', async (ctx: Koa.Context) => {
+  const headers = new Headers(ctx.request.headers as Record<string, string>)
+  const url = new URL(domain as string)
+  const { query } = ctx.request
+  query && (url.search = new URLSearchParams(query as Record<string, string | readonly string[]>).toString())
+  url.pathname = '/app/update'
+  headers.delete('host')
+  headers.delete('content-length')
+
+  console.log('订阅路径代理请求:', `${ctx.method} ${url.toString()}`)
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers,
+    ...proxyConfig,
+  })
+
+  ctx.response.status = response.status
+  const omitHeaders = ['vary', 'transfer-encoding', 'content-length', 'content-encoding']
+  for (const [key, value] of response.headers.entries()) {
+    if (!omitHeaders.includes(key)) {
+      ctx.response.set(key, value)
+    }
+  }
+  ctx.response.body = await response.text()
+})
+
 /**
  * 免登获取套餐列表
  */

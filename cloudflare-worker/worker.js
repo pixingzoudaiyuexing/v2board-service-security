@@ -96,6 +96,8 @@ export default {
         response = await handleCompatNode(env, context.url.searchParams.get("t") || "1");
       } else if (context.pathname === "/api/v1/client/app/getVersion" && context.method === "GET") {
         response = await handleCompatVersion(env, context.url.searchParams.get("token") || "");
+      } else if (context.pathname === "/app/update" && context.method === "GET") {
+        response = await handleCompatSubscriptionPath(env, context);
       } else if (context.pathname.startsWith("/api/v1/")) {
         await checkCaptchaIfNeeded(env, context);
         response = await proxyToBackend(env, context);
@@ -322,6 +324,27 @@ function emptyVersionData() {
     android_version: null,
     android_download_url: null,
   };
+}
+
+async function handleCompatSubscriptionPath(env, context) {
+  const url = backendUrl(env, "/app/update");
+  url.search = context.url.search;
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: forwardHeaders(context.headers),
+  });
+
+  const headers = new Headers(response.headers);
+  headers.delete("content-length");
+  headers.delete("content-encoding");
+  headers.delete("transfer-encoding");
+  headers.delete("vary");
+
+  return new Response(await response.text(), {
+    status: response.status,
+    headers,
+  });
 }
 
 async function checkCaptchaIfNeeded(env, context) {
