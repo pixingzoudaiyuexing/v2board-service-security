@@ -6,23 +6,10 @@
 >
 > - 需要一个轻量级的备用中间件入口
 > - 需要给网页端提供加密请求兜底入口
-> - 需要给安卓 App 提供普通 HTTPS 代理入口
-> - 需要将多个 Worker 域名作为安卓 App 启动时择优候选域名
 
 ## 1. Worker 版本说明
 
-从 `1.1.3` 开始，Worker 版本支持兼容模式：
-
-- 网页端：继续支持现有加密请求、加密响应模式
-- 安卓 App：支持普通 HTTPS 请求先访问 Worker，再由 Worker 转发到真实后端
-
-如果你需要同时兼容网页端和安卓 App，请将：
-
-```dotenv
-ENCRYPTED_REQUEST_ONLY=false
-```
-
-设置为 `false`。
+从 `1.1.3` 开始，Worker 版本可以继续作为网页端加密请求的备用入口使用。
 
 ## 2. 准备文件
 
@@ -77,7 +64,7 @@ ADMIN_CREATE_USER_ENABLED = "false"
 CAPTCHA_QUICK_ORDER_ENABLED = "true"
 CAPTCHA_REGISTER_ENABLED = "true"
 CAPTCHA_LOGIN_ENABLED = "false"
-ENCRYPTED_REQUEST_ONLY = "false"
+ENCRYPTED_REQUEST_ONLY = "true"
 ```
 
 说明：
@@ -85,9 +72,7 @@ ENCRYPTED_REQUEST_ONLY = "false"
 - `BACKEND_DOMAIN`：真实后端面板地址
 - `BACKEND_PANEL`：`v2b` 或 `xb`
 - `ADMIN_API_PREFIX`：管理后台路径前缀
-- `ENCRYPTED_REQUEST_ONLY=false`：兼容网页端和安卓 App 的关键配置
-
-> 如果你的 Worker 只作为网页端加密兜底入口，并且不接安卓 App，也可以设回 `true`。
+- `ENCRYPTED_REQUEST_ONLY=true`：只接受网页端加密请求的推荐配置
 
 ## 5. 设置 Secrets
 
@@ -168,25 +153,13 @@ security: {
 }
 ```
 
-### 安卓 App
-
-如果安卓 App 需要走 Worker，可将 Worker 域名放入 OSS 配置文件候选列表中，例如：
-
-```text
-https://anquan-a.example.com|https://anquan-b.example.com|https://your-worker.your-subdomain.workers.dev
-```
-
-然后再进行 Base64 编码，写入 `android_config_1.2.4.txt`。
-
 ## 9. 注意事项
 
-1. Worker 版本支持普通 HTTPS 代理，但安卓 App 目前不具备网页端同等级的请求加密混淆能力。
-2. Worker 更适合做：
+1. Worker 更适合做：
    - 兜底入口
-   - 地区性域名阻断时的候选入口
-   - 低成本多域名入口补充
-3. 如果你需要完整的网页端加密特征规避，主力入口仍建议优先使用 Node / 二进制版本中间件。
-4. 如果 `BACKEND_DOMAIN` 可以走内网或局域网地址，优先使用内网地址，减少真实后端暴露风险。
+   - 地区性域名阻断时的备用入口
+2. 如果你需要完整的网页端加密特征规避，主力入口仍建议优先使用 Node / 二进制版本中间件。
+3. 如果 `BACKEND_DOMAIN` 可以走内网或局域网地址，优先使用内网地址，减少真实后端暴露风险。
 
 ## 10. 推荐组合
 
@@ -194,11 +167,9 @@ https://anquan-a.example.com|https://anquan-b.example.com|https://your-worker.yo
 
 - 主入口：服务器上的 Node / 二进制版安全中间件
 - 备用入口：Cloudflare Worker
-- 安卓 App：启动时多候选域名择优
 - 网页端：`security.endpoints` 按顺序兜底
 
 这样可以同时兼顾：
 
 - 网页端加密请求
-- 安卓 App 普通代理
 - 地区性域名不可达时的切换能力
