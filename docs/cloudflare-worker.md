@@ -1,70 +1,85 @@
-# Cloudflare Worker 快速部署使用
+# Cloudflare Worker 手动部署教程
 
-本文档介绍如何使用 Cloudflare Worker 部署 `v2board-service-security` 的 Worker 版本。
+本文档介绍如何**直接在 Cloudflare 官网后台**手动创建并部署 `v2board-service-security` 的 Worker 版本。
 
 > 适用场景：
 >
 > - 需要一个轻量级的备用中间件入口
 > - 需要给网页端提供加密请求兜底入口
+> - 不想使用本地命令行、`wrangler`、Node.js 这些工具
 
 ## 1. Worker 版本说明
 
 从 `1.1.3` 开始，Worker 版本可以继续作为网页端加密请求的备用入口使用。
 
-## 2. 准备文件
+推荐配置：
 
-Worker 相关文件位于：
+- `ENCRYPTED_REQUEST_ONLY=true`
 
-```text
-cloudflare-worker/
-├── worker.js
-├── wrangler.toml
-└── README.md
-```
+这样 Worker 只接受网页端加密请求，更适合作为网页端的备用入口。
 
-其中：
+## 2. 准备内容
 
-- `worker.js` 是 Worker 主程序
-- `wrangler.toml` 是部署配置
+你需要准备以下信息：
 
-## 3. 安装 Wrangler
+1. 真实后端面板地址
+2. 面板类型：
+   - `v2b`
+   - `xb`
+3. 管理后台路径前缀
+4. `SEC_PASSWORD`
+5. 如果要启用免登或验证码功能，还需要：
+   - `ADMIN_EMAIL`
+   - `ADMIN_PASSWORD`
+   - `CAPTCHA_KEY`
 
-请先确保本地有 Node.js 环境，然后安装 Wrangler：
-
-```bash
-npm install -g wrangler
-```
-
-登录 Cloudflare：
-
-```bash
-wrangler login
-```
-
-## 4. 配置 wrangler.toml
-
-打开：
+同时，请准备好仓库中的 Worker 主文件内容：
 
 ```text
-cloudflare-worker/wrangler.toml
+cloudflare-worker/worker.js
 ```
 
-按你的实际情况修改变量：
+你可以直接打开仓库中的这个文件，复制全部内容。
 
-```toml
-name = "v2board-service-security-fallback"
-main = "worker.js"
-compatibility_date = "2026-06-02"
+## 3. 登录 Cloudflare 后台
 
-[vars]
-BACKEND_PANEL = "v2b"
-BACKEND_DOMAIN = "https://your-backend.example.com"
-ADMIN_API_PREFIX = "your-admin-prefix"
-ADMIN_CREATE_USER_ENABLED = "false"
-CAPTCHA_QUICK_ORDER_ENABLED = "true"
-CAPTCHA_REGISTER_ENABLED = "true"
-CAPTCHA_LOGIN_ENABLED = "false"
-ENCRYPTED_REQUEST_ONLY = "true"
+1. 打开 Cloudflare 官网并登录
+2. 左侧找到 **Workers & Pages**
+3. 点击 **Create application**
+4. 选择 **Create Worker**
+
+## 4. 创建 Worker
+
+1. 给 Worker 起一个名字，例如：
+
+```text
+v2board-service-security-fallback
+```
+
+2. 点击创建
+3. 进入在线编辑器后，删除默认代码
+4. 将仓库中 `cloudflare-worker/worker.js` 的内容完整复制进去
+5. 点击 **Save and Deploy**
+
+## 5. 在 Cloudflare 后台配置环境变量
+
+创建完成后，进入该 Worker：
+
+1. 点击 **Settings**
+2. 找到 **Variables**
+3. 在 **Environment Variables** 里添加以下变量
+
+### 普通变量
+
+```text
+BACKEND_PANEL=v2b
+BACKEND_DOMAIN=https://your-backend.example.com
+ADMIN_API_PREFIX=your-admin-prefix
+ADMIN_CREATE_USER_ENABLED=false
+CAPTCHA_QUICK_ORDER_ENABLED=true
+CAPTCHA_REGISTER_ENABLED=true
+CAPTCHA_LOGIN_ENABLED=false
+ENCRYPTED_REQUEST_ONLY=true
 ```
 
 说明：
@@ -72,53 +87,37 @@ ENCRYPTED_REQUEST_ONLY = "true"
 - `BACKEND_DOMAIN`：真实后端面板地址
 - `BACKEND_PANEL`：`v2b` 或 `xb`
 - `ADMIN_API_PREFIX`：管理后台路径前缀
-- `ENCRYPTED_REQUEST_ONLY=true`：只接受网页端加密请求的推荐配置
+- `ENCRYPTED_REQUEST_ONLY=true`：纯网页端加密模式推荐值
 
-## 5. 设置 Secrets
+### Secret 变量
 
-以下变量建议作为 Worker Secret 写入：
+在 **Secrets** 中添加：
 
-```bash
-cd cloudflare-worker
-
-wrangler secret put SEC_PASSWORD
-wrangler secret put ADMIN_EMAIL
-wrangler secret put ADMIN_PASSWORD
-wrangler secret put CAPTCHA_KEY
+```text
+SEC_PASSWORD=你的加密密码
+ADMIN_EMAIL=你的管理员邮箱
+ADMIN_PASSWORD=你的管理员密码
+CAPTCHA_KEY=你的验证码密钥
 ```
 
 说明：
 
-- `SEC_PASSWORD`：网页前端加密时必须与前端一致
+- `SEC_PASSWORD`：网页前端加密时必须和前端一致
 - `ADMIN_EMAIL` / `ADMIN_PASSWORD`：免登接口需要
 - `CAPTCHA_KEY`：如果启用图形验证码则需要
 
-## 6. 部署 Worker
+## 6. 再次部署
 
-进入项目根目录，执行：
+变量添加完成后：
 
-```bash
-npm install
-npx wrangler deploy --config cloudflare-worker/wrangler.toml
-```
+1. 回到 Worker 编辑页
+2. 点击 **Deploy**
 
-或者使用项目脚本：
+Cloudflare 会自动使用你刚保存的代码和变量重新部署。
 
-```bash
-npm install
-npm run deploy:worker
-```
+## 7. 验证 Worker 是否正常
 
-如果你使用 Bun，也可以先安装依赖后直接执行：
-
-```bash
-bun install
-npx wrangler deploy --config cloudflare-worker/wrangler.toml
-```
-
-## 7. 验证 Worker
-
-部署完成后，你会拿到一个 Worker 域名，例如：
+部署完成后，Worker 会有一个默认地址，例如：
 
 ```text
 https://your-worker.your-subdomain.workers.dev
@@ -136,13 +135,35 @@ https://your-worker.your-subdomain.workers.dev/healthz
 ok
 ```
 
-说明 Worker 已经运行。
+说明 Worker 已经运行成功。
 
-## 8. 使用方式
+## 8. 绑定自定义域名
 
-### 网页端
+如果你不想使用 `workers.dev` 默认地址，可以在 Cloudflare 后台手动绑定域名：
 
-网页端可以继续把 Worker 作为 `security.endpoints` 的兜底地址：
+1. 进入该 Worker
+2. 点击 **Settings**
+3. 找到 **Domains & Routes**
+4. 点击 **Add Custom Domain**
+5. 填入你的备用安全域名，例如：
+
+```text
+sec-fallback.example.com
+```
+
+6. 保存后等待 Cloudflare 生效
+
+生效后你就可以通过：
+
+```text
+https://sec-fallback.example.com/healthz
+```
+
+来测试。
+
+## 9. 网页端如何使用
+
+网页端可以把 Worker 作为 `security.endpoints` 的兜底地址：
 
 ```js
 security: {
@@ -153,7 +174,18 @@ security: {
 }
 ```
 
-## 9. 注意事项
+或者如果你绑定了自定义域名：
+
+```js
+security: {
+  endpoints: [
+    "https://anquan.example.com",
+    "https://sec-fallback.example.com",
+  ],
+}
+```
+
+## 10. 注意事项
 
 1. Worker 更适合做：
    - 兜底入口
@@ -161,7 +193,7 @@ security: {
 2. 如果你需要完整的网页端加密特征规避，主力入口仍建议优先使用 Node / 二进制版本中间件。
 3. 如果 `BACKEND_DOMAIN` 可以走内网或局域网地址，优先使用内网地址，减少真实后端暴露风险。
 
-## 10. 推荐组合
+## 11. 推荐组合
 
 推荐组合是：
 
