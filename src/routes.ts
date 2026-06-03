@@ -27,6 +27,90 @@ router.get('/healthz', async (ctx: Koa.Context) => {
   ctx.response.body = 'ok'
 })
 
+router.get('/api/v1/config', async (ctx: Koa.Context) => {
+  try {
+    const [guestConfig, userConfig] = await Promise.all([
+      BackendService.instance.getGuestConfig(),
+      BackendService.instance.getUserConfig().catch(() => ({})),
+    ])
+    ctx.response.body = {
+      data: {
+        ...guestConfig,
+        ...userConfig,
+      },
+    }
+  }
+  catch (error) {
+    console.error('compat config 500', error)
+    ctx.response.status = 200
+    ctx.response.body = {
+      data: {},
+    }
+  }
+})
+
+router.get('/api/v1/plan', async (ctx: Koa.Context) => {
+  try {
+    ctx.response.body = {
+      data: await BackendService.instance.getPlanList(),
+    }
+  }
+  catch (error) {
+    console.error('compat plan 500', error)
+    ctx.response.status = 200
+    ctx.response.body = {
+      data: [],
+    }
+  }
+})
+
+router.get('/api/v1/node', async (ctx: Koa.Context) => {
+  const { t = '1' } = ctx.request.query as { t?: string }
+  try {
+    ctx.response.body = {
+      data: await BackendService.instance.getServerList(t),
+    }
+  }
+  catch (error) {
+    console.error('compat node 500', error)
+    ctx.response.status = 200
+    ctx.response.body = {
+      data: [],
+    }
+  }
+})
+
+router.get('/api/v1/client/app/getVersion', async (ctx: Koa.Context) => {
+  const { token } = ctx.request.query as { token?: string }
+  try {
+    const versionData = await BackendService.instance.getVersion(token)
+    ctx.response.body = {
+      data: versionData || {
+        windows_version: null,
+        windows_download_url: null,
+        macos_version: null,
+        macos_download_url: null,
+        android_version: null,
+        android_download_url: null,
+      },
+    }
+  }
+  catch (error) {
+    console.error('getVersion fallback 500', error)
+    ctx.response.status = 200
+    ctx.response.body = {
+      data: {
+        windows_version: null,
+        windows_download_url: null,
+        macos_version: null,
+        macos_download_url: null,
+        android_version: null,
+        android_download_url: null,
+      },
+    }
+  }
+})
+
 /**
  * 免登获取套餐列表
  */

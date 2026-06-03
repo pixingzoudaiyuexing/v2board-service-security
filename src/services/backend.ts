@@ -21,6 +21,19 @@ interface Payment {
   enable: 0 | 1
 }
 
+interface VersionInfo {
+  windows_version: string | null
+  windows_download_url: string | null
+  macos_version: string | null
+  macos_download_url: string | null
+  android_version: string | null
+  android_download_url: string | null
+}
+
+type GuestConfig = Record<string, unknown>
+type UserConfig = Record<string, unknown>
+type ServerNode = Record<string, unknown>
+
 export type PlanPeriodKey = 'month_price' | 'quarter_price' | 'half_year_price' | 'year_price' | 'two_year_price' | 'three_year_price' | 'onetime_price' | 'reset_price'
 
 export class BackendService {
@@ -136,6 +149,35 @@ export class BackendService {
     const method = 'GET'
 
     return (await this.request<{ data: Payment[] }>(url, { method })).data
+  }
+
+  async getGuestConfig() {
+    const url = `${this.origin}/api/v1/guest/comm/config`
+    const method = 'GET'
+
+    return (await this.request<{ data: GuestConfig }>(url, { method })).data
+  }
+
+  async getUserConfig() {
+    const url = this.userApi('comm/config')
+    const method = 'GET'
+
+    return (await this.request<{ data: UserConfig }>(url, { method })).data
+  }
+
+  async getServerList(t = '1') {
+    const url = `${this.userApi('server/fetch')}?t=${encodeURIComponent(t)}`
+    const method = 'GET'
+
+    return (await this.request<{ data: ServerNode[] }>(url, { method })).data
+  }
+
+  async getVersion(token?: string) {
+    const url = `${this.origin}/api/v1/client/app/getVersion`
+    const search = token ? `?token=${encodeURIComponent(token)}` : ''
+    const method = 'GET'
+
+    return (await this.request<{ data: VersionInfo }>(`${url}${search}`, { method })).data
   }
 
   async getCouponData(data: { code: string, plan_id?: string, period?: PlanPeriodKey }) {

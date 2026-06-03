@@ -88,6 +88,14 @@ export default {
         response = await handleQuickCaptcha(env, context.url.searchParams.get("type"));
       } else if (context.pathname === "/api/v1/r8d/quick/order" && context.method === "POST") {
         response = await handleQuickOrder(env, context.bodyJson);
+      } else if (context.pathname === "/api/v1/config" && context.method === "GET") {
+        response = await handleCompatConfig(env);
+      } else if (context.pathname === "/api/v1/plan" && context.method === "GET") {
+        response = await handleCompatPlan(env);
+      } else if (context.pathname === "/api/v1/node" && context.method === "GET") {
+        response = await handleCompatNode(env, context.url.searchParams.get("t") || "1");
+      } else if (context.pathname === "/api/v1/client/app/getVersion" && context.method === "GET") {
+        response = await handleCompatVersion(env, context.url.searchParams.get("token") || "");
       } else if (context.pathname.startsWith("/api/v1/")) {
         await checkCaptchaIfNeeded(env, context);
         response = await proxyToBackend(env, context);
@@ -246,6 +254,74 @@ async function handleQuickOrder(env, body) {
 
   const orderId = await createOrder(env, authToken, planId, period, couponCode);
   return json({ authToken, orderId });
+}
+
+async function handleCompatConfig(env) {
+  try {
+    const [guestConfig, userConfig] = await Promise.all([
+      backendJson(env, "/api/v1/guest/comm/config", { method: "GET" }),
+      backendJson(env, "/api/v1/user/comm/config", {
+        method: "GET",
+        token: await getAdminToken(env),
+      }).catch(() => ({ data: {} })),
+    ]);
+    return json({
+      data: {
+        ...(guestConfig.data || {}),
+        ...(userConfig.data || {}),
+      },
+    });
+  } catch {
+    return json({ data: {} });
+  }
+}
+
+async function handleCompatPlan(env) {
+  try {
+    const data = await backendJson(env, "/api/v1/user/plan/fetch", {
+      method: "GET",
+      token: await getAdminToken(env),
+    });
+    return json({ data: data.data || [] });
+  } catch {
+    return json({ data: [] });
+  }
+}
+
+async function handleCompatNode(env, t) {
+  try {
+    const data = await backendJson(env, `/api/v1/user/server/fetch?t=${encodeURIComponent(t)}`, {
+      method: "GET",
+      token: await getAdminToken(env),
+    });
+    return json({ data: data.data || [] });
+  } catch {
+    return json({ data: [] });
+  }
+}
+
+async function handleCompatVersion(env, token) {
+  try {
+    const suffix = token ? `?token=${encodeURIComponent(token)}` : "";
+    const data = await backendJson(env, `/api/v1/client/app/getVersion${suffix}`, {
+      method: "GET",
+      token: token || undefined,
+    });
+    return json({ data: data.data || emptyVersionData() });
+  } catch {
+    return json({ data: emptyVersionData() });
+  }
+}
+
+function emptyVersionData() {
+  return {
+    windows_version: null,
+    windows_download_url: null,
+    macos_version: null,
+    macos_download_url: null,
+    android_version: null,
+    android_download_url: null,
+  };
 }
 
 async function checkCaptchaIfNeeded(env, context) {
